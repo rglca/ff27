@@ -5,5 +5,17 @@
   "display": "standalone",
   "background_color": "#eef1e8",
   "theme_color": "#111a17",
-  "description": "A mobile fantasy football draft board and pick assistant."
+  "description": "A mobile fantasy football draft board and pick assistant.",
+  "icons": [
+    {
+      "src": "icons/draftboard-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/draftboard-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
