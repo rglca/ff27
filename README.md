@@ -4,8 +4,7 @@ A no-build, mobile-first fantasy football draft board for this league shape:
 
 - 10 teams
 - Full PPR
-- 1 QB, 2 RB, 2 WR, 2 FLEX, 1 K, 1 DEF
-- No dedicated TE slot was supplied, so TE is treated as FLEX-eligible depth
+- 1 QB, 2 RB, 2 WR, 1 TE, 2 FLEX, 1 K, 1 DEF, 6 bench spots (16 rounds / 160 total picks)
 
 ## Use it
 
@@ -27,4 +26,4 @@ Push the repository to GitHub, then choose **Settings → Pages → Deploy from 
 
 ## Data notes
 
-The included player data is an Aug. 29, 2026 static snapshot of current ADP/rankings, 2024–25 production, and preseason injury context. Review the live links in [SOURCES.md](SOURCES.md) immediately before the draft; the app is intentionally designed so new injury news can be applied manually in seconds.
+The included player data is an Aug. 29, 2026 static snapshot of current ADP/rankings, 2024–25 production, and preseason injury context. The board contains 186 players to provide six-bench depth and contingency options for a 160-pick draft. Review the live links in [SOURCES.md](SOURCES.md) immediately before the draft; the app is intentionally designed so new injury news can be applied manually in seconds.

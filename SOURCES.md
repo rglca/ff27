@@ -21,6 +21,12 @@ Data was gathered on **August 29, 2026** for a 2026 full-PPR redraft board. The 
 - [FantasyPros 2024 TE stats](https://www.fantasypros.com/nfl/stats/te.php?year=2024)
 - [NFL 2025 receiving stats](https://fantasy-www.nfl.com/stats/player-stats/category/receiving/2025/REG/all/receivingyards/DESC) — official NFL receiving table used as a cross-check for the 2025 receiver data.
 
+## Latest injury refresh
+
+- [CBS Sports 2026 NFL injuries](https://www.cbssports.com/nfl/injuries/) — current team-by-team injury and Week 1 status table checked Aug. 29, 2026.
+- [PFN fantasy injury update](https://www.profootballnetwork.com/fantasy-football/preseason-fantasy-football-injury-update-2026/) — Aug. 29 fantasy-focused context for Mahomes, Jacobs, Charbonnet, Skattebo, Nabers, Kittle, and other high-impact players.
+- [PFN injury report](https://www.profootballnetwork.com/fantasy-hq/injury-report) — cross-check for questionable players and contingency value.
+
 The app stores recent fantasy points per game (`2025 FPG` and `2024 FPG`) where the source tables exposed the player row. For rookies and players with limited accessible rows, the current projection and market rank carry more weight.
 
 ## Injury and availability context
@@ -41,8 +47,11 @@ Each available player receives a draft score based on:
 1. **48% projection** — current PPR points-per-game projection where available.
 2. **27% market** — current ADP, with earlier ADP rewarded.
 3. **25% recent production** — the average of 2024 and 2025 fantasy points per game where available.
-4. **Roster pressure** — boosts RB/WR early when the two required slots are still empty, boosts FLEX-eligible players while FLEX spots are open, and suppresses QB/K/DEF after the relevant slot is filled. K and DEF are intentionally held down until roughly pick 105.
-5. **Strategy lens** — a small early-draft boost for WRs in WR-first mode or RBs in RB-first mode.
-6. **Health** — `Q` receives a moderate discount; `O` and a user-applied manual injury tag receive a severe discount.
+4. **QB-specific production/timing** — 2025 QB fantasy points are multiplied by 0.5 inside the recent-production component, and non-Allen quarterbacks are held back until the late portion of the draft. Josh Allen is the only early-QB exception.
+5. **Roster pressure** — boosts RB/WR/TE while required slots are still empty, boosts FLEX-eligible players while FLEX spots are open, adds pressure for the six bench spots after the ten starters are filled, and suppresses QB/K/DEF after the relevant slot is filled. K and DEF are intentionally held down until roughly pick 105.
+6. **Strategy lens** — a small early-draft boost for WRs in WR-first mode or RBs in RB-first mode.
+7. **Health** — `Q` receives a moderate discount; `O` and a user-applied manual injury tag receive a severe discount.
+
+The board now includes 186 rows so a 160-pick league has late-round and contingency depth. Rows added beyond the original top-144 seed are intentionally late-board player and handcuff additions; their late ADPs are conservative board estimates rather than direct composite-market observations.
 
 The score is a decision aid, not a projection or a guarantee. A status tag is only as current as the snapshot and any manual update you enter.

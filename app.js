@@ -1,5 +1,8 @@
 (() => {
   const { players, asOf } = window.FANTASY_BOARD;
+  const LEAGUE = { teams: 10, starterSlots: 10, bench: 6 };
+  const TOTAL_DRAFT_PICKS = LEAGUE.teams * (LEAGUE.starterSlots + LEAGUE.bench);
+  const QB_RECENT_PRODUCTION_WEIGHT = 0.5;
   const STORAGE_KEY = "draftboard-2026-state-v1";
   const makeInitialState = () => ({
     strategy: "balanced",
@@ -94,7 +97,15 @@
   }
 
   function flexesFilled(rosterCounts = counts()) {
-    return Math.min(2, Math.max(0, rosterCounts.RB - 2) + Math.max(0, rosterCounts.WR - 2) + rosterCounts.TE);
+    return Math.min(2, Math.max(0, rosterCounts.RB - 2) + Math.max(0, rosterCounts.WR - 2) + Math.max(0, rosterCounts.TE - 1));
+  }
+
+  function starterSlotsFilled(rosterCounts = counts()) {
+    return Math.min(1, rosterCounts.QB) + Math.min(2, rosterCounts.RB) + Math.min(2, rosterCounts.WR) + Math.min(1, rosterCounts.TE) + flexesFilled(rosterCounts) + Math.min(1, rosterCounts.K) + Math.min(1, rosterCounts.DEF);
+  }
+
+  function benchFilled(rosterCounts = counts()) {
+    return Math.min(LEAGUE.bench, Math.max(0, state.myRoster.length - starterSlotsFilled(rosterCounts)));
   }
 
   function currentPick() {
@@ -106,24 +117,35 @@
     const pick = currentPick();
     const averageRecent = [p.fpg25, p.fpg24].filter((value) => Number.isFinite(value));
     const recent = averageRecent.length ? averageRecent.reduce((a, b) => a + b, 0) / averageRecent.length : null;
-    const projectionScore = p.proj ? Math.min(100, (p.proj / 24) * 100) : recent ? Math.min(100, (recent / 20) * 100) : 46;
+    const scoringRecentValues = p.pos === "QB"
+      ? [Number.isFinite(p.fpg25) ? p.fpg25 * QB_RECENT_PRODUCTION_WEIGHT : null, p.fpg24].filter((value) => Number.isFinite(value))
+      : averageRecent;
+    const scoringRecent = scoringRecentValues.length ? scoringRecentValues.reduce((a, b) => a + b, 0) / scoringRecentValues.length : null;
+    const projectionScore = p.proj ? Math.min(100, (p.proj / 24) * 100) : scoringRecent ? Math.min(100, (scoringRecent / 20) * 100) : 46;
     const marketScore = Math.max(12, 100 - (p.adp / 2.05));
-    const statScore = recent ? Math.min(100, (recent / 20) * 100) : projectionScore * 0.88;
+    const statScore = scoringRecent ? Math.min(100, (scoringRecent / 20) * 100) : projectionScore * 0.88;
     let score = (projectionScore * 0.48) + (marketScore * 0.27) + (statScore * 0.25);
 
     let need = 1;
     if (p.pos === "RB" && c.RB < 2) need *= 1.16;
     if (p.pos === "WR" && c.WR < 2) need *= 1.16;
+    if (p.pos === "TE" && c.TE < 1) need *= 1.12;
     if (p.pos === "TE" && flexesFilled(c) < 2) need *= 1.03;
     if (["RB", "WR", "TE"].includes(p.pos) && flexesFilled(c) < 2) need *= 1.04;
-    if (p.pos === "QB") need *= c.QB === 0 ? 1.05 : 0.42;
+    if (p.pos === "QB") {
+      if (c.QB > 0) need *= 0.42;
+      else if (p.id === "josh-allen" && pick <= 40) need *= 1.20;
+      else if (pick < 110) need *= 0.42;
+      else if (pick < 140) need *= 0.58;
+      else if (pick < 160) need *= 0.78;
+    }
     if (p.pos === "K") need *= c.K === 0 && pick >= 105 ? 1.18 : 0.22;
     if (p.pos === "DEF") need *= c.DEF === 0 && pick >= 105 ? 1.18 : 0.22;
+    if (benchFilled(c) < LEAGUE.bench && starterSlotsFilled(c) >= LEAGUE.starterSlots && ["RB", "WR", "TE"].includes(p.pos)) need *= 1.08;
 
     const early = pick <= 70;
     if (state.strategy === "wr-first" && p.pos === "WR" && early) need *= 1.10;
     if (state.strategy === "rb-first" && p.pos === "RB" && early) need *= 1.10;
-    if (p.pos === "QB" && pick < 36 && p.proj < 22) need *= 0.82;
     if (["K", "DEF"].includes(p.pos) && pick < 105) need *= 0.28;
 
     const status = displayStatus(p);
@@ -171,6 +193,7 @@
     const needs = [];
     if (c.RB < 2 && p.pos === "RB") needs.push(`${2 - c.RB} RB slot${c.RB === 1 ? "" : "s"}`);
     if (c.WR < 2 && p.pos === "WR") needs.push(`${2 - c.WR} WR slot${c.WR === 1 ? "" : "s"}`);
+    if (c.TE < 1 && p.pos === "TE") needs.push("TE slot");
     if (flexesFilled(c) < 2 && ["RB", "WR", "TE"].includes(p.pos)) needs.push("FLEX depth");
     const strategy = state.strategy === "wr-first" && p.pos === "WR" ? " WR-first gets a small boost here." : state.strategy === "rb-first" && p.pos === "RB" ? " RB-first gets a small boost here." : "";
     const needText = needs.length ? `Fills ${needs.join(" + ")}.` : "Fits the best remaining value on your roster.",
@@ -207,10 +230,10 @@
   function renderRoster() {
     const c = counts();
     const slots = [
-      ["QB", 1], ["RB", 2], ["WR", 2], ["FLEX", 2], ["K", 1], ["DEF", 1]
+      ["QB", 1], ["RB", 2], ["WR", 2], ["TE", 1], ["FLEX", 2], ["K", 1], ["DEF", 1], ["BENCH", LEAGUE.bench]
     ];
     $("#roster-slots").innerHTML = slots.map(([label, max]) => {
-      const count = label === "FLEX" ? flexesFilled(c) : c[label];
+      const count = label === "FLEX" ? flexesFilled(c) : label === "BENCH" ? benchFilled(c) : c[label];
       return `<div class="slot"><div class="slot-label">${label}</div><div class="slot-count ${count >= max ? "complete" : ""}">${count}/${max}</div></div>`;
     }).join("");
     $("#pick-count").textContent = `${state.myRoster.length} roster pick${state.myRoster.length === 1 ? "" : "s"}`;
@@ -320,6 +343,8 @@
 
   function renderAll() {
     $("#pick-number").value = currentPick();
+    $("#pick-number").max = TOTAL_DRAFT_PICKS;
+    $(".pick-suffix").textContent = `of ${TOTAL_DRAFT_PICKS}`;
     $$(".seg-btn").forEach((button) => button.classList.toggle("active", button.dataset.strategy === state.strategy));
     renderRecommendation();
     renderRoster();
