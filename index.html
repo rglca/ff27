@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111a17" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Draftboard // 2026 PPR</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true">//</div>
+          <div>
+            <p class="eyebrow">2026 fantasy football</p>
+            <h1>Draftboard</h1>
+          </div>
+        </div>
+        <div class="league-chip">FULL PPR <span>·</span> 10 teams</div>
+      </header>
+
+      <main>
+        <section class="hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow accent">Your draft, in one screen</p>
+            <h2>Make the next pick<br /><span>with a plan.</span></h2>
+            <p class="hero-note">Live-ready board seeded with current market ADP, recent production, injury context, and a roster-aware pick engine.</p>
+          </div>
+          <div class="control-card card">
+            <div class="card-kicker">Draft control</div>
+            <label class="field-label" for="pick-number">Overall pick</label>
+            <div class="pick-input-wrap">
+              <input id="pick-number" class="pick-input" type="number" inputmode="numeric" min="1" max="300" value="1" aria-label="Overall pick number" />
+              <span class="pick-suffix">of 150</span>
+            </div>
+            <div class="field-label strategy-label">Strategy lens</div>
+            <div class="strategy-toggle" role="group" aria-label="Draft strategy">
+              <button class="seg-btn active" data-strategy="balanced">Balanced</button>
+              <button class="seg-btn" data-strategy="wr-first">WR-first</button>
+              <button class="seg-btn" data-strategy="rb-first">RB-first</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="recommendation card" aria-live="polite">
+          <div class="recommendation-label"><span class="pulse-dot"></span> On deck</div>
+          <div id="recommendation-content"></div>
+        </section>
+
+        <section class="dashboard-grid">
+          <div class="roster-card card">
+            <div class="section-heading">
+              <div>
+                <div class="card-kicker">Your build</div>
+                <h3>Roster pressure</h3>
+              </div>
+              <span id="pick-count" class="muted-small">0 picks</span>
+            </div>
+            <div id="roster-slots" class="roster-slots"></div>
+            <p class="microcopy">Two FLEX spots can be filled by RB, WR, or TE. No dedicated TE slot was provided, so this board does not force one.</p>
+          </div>
+          <div class="quick-add-card card">
+            <div class="section-heading">
+              <div>
+                <div class="card-kicker">Draft tracker</div>
+                <h3>Log a pick</h3>
+              </div>
+              <button id="undo-button" class="text-button" type="button" disabled>Undo</button>
+            </div>
+            <form id="quick-add-form" class="quick-add-form">
+              <label class="sr-only" for="player-input">Player drafted</label>
+              <input id="player-input" list="player-suggestions" autocomplete="off" placeholder="Type a player name…" />
+              <datalist id="player-suggestions"></datalist>
+              <button class="primary-button" type="submit">Log drafted</button>
+            </form>
+            <div id="recent-picks" class="recent-picks"></div>
+          </div>
+        </section>
+
+        <section class="board-section">
+          <div class="board-heading">
+            <div>
+              <div class="card-kicker">The board</div>
+              <h3>Available players</h3>
+              <p id="board-subtitle" class="muted-small">Sorted by draft score · injury adjusted</p>
+            </div>
+            <div class="board-actions">
+              <button id="export-button" class="secondary-button" type="button">Export CSV</button>
+              <button id="reset-button" class="text-button danger-text" type="button">Reset</button>
+            </div>
+          </div>
+
+          <div class="view-tabs" role="tablist" aria-label="Board views">
+            <button class="view-tab active" role="tab" aria-selected="true" data-view="board">Big board</button>
+            <button class="view-tab" role="tab" aria-selected="false" data-view="shortlists">Shortlists</button>
+            <button class="view-tab" role="tab" aria-selected="false" data-view="injuries">Injuries</button>
+          </div>
+
+          <div id="board-view" class="view-panel"></div>
+          <div id="shortlists-view" class="view-panel hidden"></div>
+          <div id="injuries-view" class="view-panel hidden"></div>
+        </section>
+      </main>
+
+      <footer class="footer-note">
+        <span>Seeded Aug 29, 2026</span>
+        <a href="SOURCES.md">Sources & methodology</a>
+        <span>Save this page to your Home Screen</span>
+      </footer>
+    </div>
+
+    <script src="data/players.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

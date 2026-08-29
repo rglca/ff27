@@ -1,0 +1,9 @@
+{
+  "name": "Draftboard 2026 PPR",
+  "short_name": "Draftboard",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#eef1e8",
+  "theme_color": "#111a17",
+  "description": "A mobile fantasy football draft board and pick assistant."
+}
