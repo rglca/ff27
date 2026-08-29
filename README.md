@@ -18,6 +18,8 @@ On draft day:
 4. Use `Injure` if news breaks. This local tag immediately drops that player in the model and persists on the device.
 5. Use `Export CSV` if you want a spreadsheet snapshot. Import that CSV into Google Sheets on iOS.
 
+The recommendation card is tag-first: it shows the player's role, system fit, team style, QB environment, target-shape signal, bye-week relationship to your roster, roster need, strategy lens, and health status. The context tags are modest score modifiers, so projection, ADP, and recent production remain the foundation.
+
 The app saves draft state in the browser's local storage. `Reset` clears the draft tracker and manual tags.
 
 ## Publish with GitHub Pages

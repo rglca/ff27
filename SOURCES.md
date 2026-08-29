@@ -10,6 +10,14 @@ Data was gathered on **August 29, 2026** for a 2026 full-PPR redraft board. The 
 - [NFLFantasyEdge 2026 PPR top 100](https://nflfantasyedge.com/rankings-2026/) — current top-100 board with ADP, projected PPR points per game, and tiers; last updated Aug. 29, 2026. This is the primary static board seed because the table is easy to export into a no-build web app.
 - [ESPN 2026 PPR draft kit PDF](https://g.espncdn.com/s/ffldraftkit/26/NFL26_CS_PPR300.pdf?adddata=2026CS_PPR300) — a 300-player PPR cheat sheet. ESPN describes its default as a 10-team, one-QB format, which is close to this league's setup, though its published roster includes a TE slot and only one FLEX.
 
+## Team systems, roles, and bye-week context
+
+- [Pro Football Network 2026 NFL depth charts](https://nfl-hq.profootballnetwork.com/nfl-hq/depth-charts) — current depth-chart order used to label likely starters, rotations, handcuffs, and contingency players.
+- [PFF 2026 fantasy depth charts](https://www.pff.com/news/fantasy-football-2026-depth-charts-for-all-32-nfl-teams) — fantasy-oriented role and target-share cross-check across all 32 teams.
+- [2025 NFL team run/pass ratios](https://www.gofootballanalytics.com/seasonstats/run-pass-ratio/all/2025/all.php) — baseline for the team-style tags (pass-heavy, pass-leaning, balanced, or run-leaning).
+
+The recommendation card uses these sources plus `TEAMS.md` to show transparent tags rather than a prose explanation: role, position/system fit, team style, QB environment, concentration/spread shape, bye-week relationship to the current roster, roster need, and health. These are directional context modifiers layered on top of projection, ADP, recent production, and league-roster pressure; they are not independent projections.
+
 ## Recent production
 
 - [FantasyPros 2025 RB stats](https://www.fantasypros.com/nfl/stats/rb.php?year=2025)
