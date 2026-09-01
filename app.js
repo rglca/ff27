@@ -2,7 +2,6 @@
   const { players, asOf } = window.FANTASY_BOARD;
   const fantasyContext = window.FANTASY_CONTEXT || { systems: {}, roles: {} };
   const LEAGUE = { teams: 10, starterSlots: 10, bench: 6 };
-  const TOTAL_DRAFT_PICKS = LEAGUE.teams * (LEAGUE.starterSlots + LEAGUE.bench);
   const QB_RECENT_PRODUCTION_WEIGHT = 0.5;
   const STORAGE_KEY = "draftboard-2026-state-v1";
   const makeInitialState = () => ({
@@ -13,6 +12,7 @@
     manualInjured: {},
     view: "board",
     posFilter: "ALL",
+    adpPosFilter: "ALL",
     search: "",
     sort: "score",
     availableOnly: true,
@@ -35,7 +35,7 @@
   }
 
   function roleFor(p) {
-    const explicit = fantasyContext.roles[p.id];
+    const explicit = fantasyContext.roles[p.id] || p.depthRole;
     if (explicit) {
       const upper = explicit.toUpperCase();
       const starter = ["LEAD", "RB1", "RB2", "WR1", "WR2", "TE1", "ELITE QB", "STARTER QB", "STARTER K", "STARTER UNIT"].some((term) => upper.includes(term));
@@ -113,7 +113,10 @@
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
       const fresh = makeInitialState();
-      return saved ? { ...fresh, ...saved, history: [] } : fresh;
+      if (!saved) return fresh;
+      const migrated = { ...fresh, ...saved, history: [] };
+      if (migrated.view === "shortlists") migrated.view = "adp";
+      return migrated;
     } catch (_) {
       return makeInitialState();
     }
@@ -274,43 +277,36 @@
   }
 
   function renderRecommendation() {
-    const [best, ...alternatives] = topRecommendations(4);
+    const recommendations = topRecommendations(4);
     const container = $("#recommendation-content");
-    if (!best) {
+    if (!recommendations.length) {
       container.innerHTML = `<div class="recommendation-main"><div><div class="rec-name">Board cleared</div><div class="rec-meta">Reset the tracker to start another draft.</div></div></div>`;
       return;
     }
-    const status = displayStatus(best.p);
-    const statusText = status.label ? ` · ${status.label}` : "";
-    container.innerHTML = `
-      <div class="recommendation-main">
-        <div class="recommendation-player">
-          <div class="rec-rank">#${best.p.rank}</div>
-          <div>
-            <div class="rec-name">${escapeHtml(best.p.name)}</div>
-            <div class="rec-meta">${best.p.pos} · ${best.p.team} · ADP ${best.p.adp.toFixed(1)}${statusText}</div>
-          </div>
-        </div>
-        <div class="recommendation-score"><div class="rec-score">${Math.round(best.metrics.score)}</div><div class="rec-score-label">draft score</div></div>
-      </div>
-      <div class="recommendation-signals" aria-label="Recommendation signals">
-        ${recommendationSignals(best.p, best.metrics).map((tag) => `<span class="signal-tag ${tag.tone}">${escapeHtml(tag.label)}</span>`).join("")}
-      </div>
-      <div class="rec-alternatives" aria-label="Alternative picks">
-        ${alternatives.map(({ p, metrics }) => `<button class="rec-alt" data-recommendation-take="${p.id}" type="button">${escapeHtml(p.name)} · ${p.pos} · ${Math.round(metrics.score)}</button>`).join("")}
-      </div>`;
+    container.innerHTML = `<div class="recommendation-grid" aria-label="Recommended players">${recommendations.map(renderRecommendationOption).join("")}</div>`;
   }
 
-  function renderRoster() {
-    const c = counts();
-    const slots = [
-      ["QB", 1], ["RB", 2], ["WR", 2], ["TE", 1], ["FLEX", 2], ["K", 1], ["DEF", 1], ["BENCH", LEAGUE.bench]
-    ];
-    $("#roster-slots").innerHTML = slots.map(([label, max]) => {
-      const count = label === "FLEX" ? flexesFilled(c) : label === "BENCH" ? benchFilled(c) : c[label];
-      return `<div class="slot"><div class="slot-label">${label}</div><div class="slot-count ${count >= max ? "complete" : ""}">${count}/${max}</div></div>`;
-    }).join("");
-    $("#pick-count").textContent = `${state.myRoster.length} roster pick${state.myRoster.length === 1 ? "" : "s"}`;
+  function renderRecommendationOption({ p, metrics }) {
+    const status = displayStatus(p);
+    const statusText = status.label ? ` · ${status.label}` : "";
+    return `<article class="recommendation-option">
+      <div class="recommendation-option-head">
+        <div class="recommendation-option-identity">
+          <div class="rec-rank">#${p.rank}</div>
+          <div class="recommendation-option-name">${escapeHtml(p.name)}</div>
+          <div class="rec-meta">${p.pos} · ${p.team} · ADP ${p.adp.toFixed(1)}${statusText}</div>
+        </div>
+        <div class="recommendation-score"><div class="rec-score">${Math.round(metrics.score)}</div><div class="rec-score-label">score</div></div>
+      </div>
+      <div class="recommendation-signals" aria-label="${escapeHtml(p.name)} signals">
+        ${recommendationSignals(p, metrics).map((tag) => `<span class="signal-tag ${tag.tone}">${escapeHtml(tag.label)}</span>`).join("")}
+      </div>
+      <div class="recommendation-option-actions">
+        <button class="row-action take" data-recommendation-take="${p.id}" type="button">I took</button>
+        <button class="row-action" data-recommendation-draft="${p.id}" type="button">Drafted</button>
+        <button class="row-action injury" data-recommendation-injure="${p.id}" type="button">${state.manualInjured[p.id] ? "Clear tag" : "Injure"}</button>
+      </div>
+    </article>`;
   }
 
   function renderRecentPicks() {
@@ -327,13 +323,18 @@
     }
     const undo = $("#undo-button");
     undo.disabled = !state.history.length;
+    $("#pick-count").textContent = `${state.drafted.length} logged · pick ${currentPick()}`;
     if (state.feedback) {
       container.insertAdjacentHTML("afterbegin", `<div class="muted-small" style="width:100%;color:var(--red)">${escapeHtml(state.feedback)}</div>`);
     }
   }
 
   function renderDatalist() {
-    $("#player-suggestions").innerHTML = players.map((p) => `<option value="${escapeHtml(p.name)}">`).join("");
+    $("#player-suggestions").innerHTML = players
+      .filter((p) => !state.drafted.includes(p.id))
+      .sort((a, b) => a.adp - b.adp)
+      .map((p) => `<option value="${escapeHtml(p.name)}">`)
+      .join("");
   }
 
   function renderBoard() {
@@ -379,21 +380,38 @@
     </div>`;
   }
 
-  function shortlistCard(title, kicker, description, list) {
-    return `<div class="shortlist-card"><div class="card-kicker">${kicker}</div><h4>${title}</h4><p>${description}</p>${list.map(({ p, metrics }) => `<div class="shortlist-item"><div class="shortlist-item-name">${escapeHtml(p.name)}<small>${p.pos} · ADP ${p.adp.toFixed(1)}${displayStatus(p).label ? ` · ${displayStatus(p).label}` : ""}</small></div><div class="shortlist-item-score">${Math.round(metrics.score)}</div></div>`).join("")}</div>`;
+  function renderAdpRow({ p, metrics }, index) {
+    const status = displayStatus(p);
+    const statusBadge = status.label ? `<span class="status-badge ${status.className}">${status.label}</span>` : "";
+    const manual = Boolean(state.manualInjured[p.id]);
+    return `<div class="adp-row ${manual ? "is-manual-injured" : ""}">
+      <div class="adp-rank">${index + 1}</div>
+      <div class="player-identity">
+        <div class="player-name-line"><span class="position-badge">${p.pos}</span><span class="player-name">${escapeHtml(p.name)}</span>${statusBadge}</div>
+        <div class="player-subline">${p.team} · bye ${p.bye}${status.note ? ` · ${escapeHtml(status.note)}` : ""}</div>
+      </div>
+      <div class="adp-number">${p.adp.toFixed(1)}<span>ADP</span></div>
+      <div class="adp-actions">
+        <button class="row-action take" data-adp-take="${p.id}" type="button">I took</button>
+        <button class="row-action" data-adp-draft="${p.id}" type="button">Drafted</button>
+        <button class="row-action injury" data-adp-injure="${p.id}" type="button">${manual ? "Clear tag" : "Injure"}</button>
+      </div>
+    </div>`;
   }
 
-  function renderShortlists() {
-    const available = players.filter((p) => !state.drafted.includes(p.id)).map((p) => ({ p, metrics: scorePlayer(p) }));
-    const byScore = (list) => list.sort((a, b) => b.metrics.score - a.metrics.score);
-    const anchors = byScore(available.filter(({ p }) => p.rank <= 24)).slice(0, 7);
-    const middle = byScore(available.filter(({ p }) => p.rank > 24 && p.rank <= 80)).slice(0, 8);
-    const late = byScore(available.filter(({ p }) => p.rank > 80 && !["K", "DEF"].includes(p.pos))).slice(0, 8);
-    $("#shortlists-view").innerHTML = `<div class="shortlist-grid">
-      ${shortlistCard("First two rounds", "Anchor list", "A compact tier of players to feel good about from any draft slot. Let the position fall to you.", anchors)}
-      ${shortlistCard("Middle-round targets", "Build list", "The best intersection of current market, projection, recent output, and roster pressure.", middle)}
-      ${shortlistCard("Late-round upside", "Bench list", "Prioritize workload paths and FLEX-eligible swings before chasing a kicker or defense.", late)}
-    </div>`;
+  function renderAdp() {
+    const posOptions = ["ALL", "RB", "WR", "QB", "TE", "K", "DEF"];
+    const available = players
+      .filter((p) => !state.drafted.includes(p.id))
+      .filter((p) => state.adpPosFilter === "ALL" || p.pos === state.adpPosFilter)
+      .map((p) => ({ p, metrics: scorePlayer(p) }))
+      .sort((a, b) => a.p.adp - b.p.adp || a.p.name.localeCompare(b.p.name));
+    $("#adp-view").innerHTML = `
+      <div class="adp-toolbar">
+        <div><div class="card-kicker">Sleeper-style PPR order</div><p class="muted-small">${available.length} available of ${players.length} players · remove names by marking them drafted</p></div>
+        <div class="filter-pills">${posOptions.map((pos) => `<button class="filter-pill ${state.adpPosFilter === pos ? "active" : ""}" data-adp-position-filter="${pos}" type="button">${pos === "ALL" ? "All" : pos}</button>`).join("")}</div>
+      </div>
+      <div class="adp-list">${available.length ? available.map(renderAdpRow).join("") : `<div class="empty-state">No available players match this view.</div>`}</div>`;
   }
 
   function renderInjuries() {
@@ -410,21 +428,19 @@
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", active ? "true" : "false");
     });
-    ["board", "shortlists", "injuries"].forEach((view) => {
+    ["board", "adp", "injuries"].forEach((view) => {
       $(`#${view}-view`).classList.toggle("hidden", state.view !== view);
     });
   }
 
   function renderAll() {
-    $("#pick-number").value = currentPick();
-    $("#pick-number").max = TOTAL_DRAFT_PICKS;
-    $(".pick-suffix").textContent = `of ${TOTAL_DRAFT_PICKS}`;
+    $("#current-pick").textContent = currentPick();
     $$(".seg-btn").forEach((button) => button.classList.toggle("active", button.dataset.strategy === state.strategy));
     renderRecommendation();
-    renderRoster();
     renderRecentPicks();
+    renderDatalist();
     renderBoard();
-    renderShortlists();
+    renderAdp();
     renderInjuries();
     renderViewState();
     $("#board-subtitle").textContent = state.view === "board" ? `${state.sort === "score" ? "Sorted by draft score" : `Sorted by ${state.sort}`} · injury adjusted · ${players.length} players` : `Seeded ${asOf} · local changes save on this device`;
@@ -466,12 +482,6 @@
   }
 
   function bindEvents() {
-    $("#pick-number").addEventListener("change", (event) => {
-      state.pick = Math.max(1, Number(event.target.value) || 1);
-      saveState();
-      renderAll();
-    });
-
     $$(".seg-btn").forEach((button) => button.addEventListener("click", () => {
       state.strategy = button.dataset.strategy;
       saveState();
@@ -514,8 +524,6 @@
       renderAll();
     });
 
-    $("#export-button").addEventListener("click", exportCsv);
-
     $("#reset-button").addEventListener("click", () => {
       if (!window.confirm("Clear the draft tracker and manual injury tags?")) return;
       state = makeInitialState();
@@ -534,15 +542,27 @@
       renderAll();
     });
 
-    $("#shortlists-view").addEventListener("click", () => {});
+    $("#adp-view").addEventListener("click", (event) => {
+      const target = event.target.closest("button");
+      if (!target) return;
+      if (target.dataset.adpPositionFilter) state.adpPosFilter = target.dataset.adpPositionFilter;
+      if (target.dataset.adpTake) draftPlayer(target.dataset.adpTake, true);
+      if (target.dataset.adpDraft) draftPlayer(target.dataset.adpDraft, false);
+      if (target.dataset.adpInjure) toggleManualInjury(target.dataset.adpInjure);
+      saveState();
+      renderAll();
+    });
     $("#injuries-view").addEventListener("click", (event) => {
       const target = event.target.closest("button[data-injure-player]");
       if (target) toggleManualInjury(target.dataset.injurePlayer);
     });
 
     $("#recommendation-content").addEventListener("click", (event) => {
-      const target = event.target.closest("button[data-recommendation-take]");
-      if (target) draftPlayer(target.dataset.recommendationTake, true);
+      const target = event.target.closest("button");
+      if (!target) return;
+      if (target.dataset.recommendationTake) draftPlayer(target.dataset.recommendationTake, true);
+      if (target.dataset.recommendationDraft) draftPlayer(target.dataset.recommendationDraft, false);
+      if (target.dataset.recommendationInjure) toggleManualInjury(target.dataset.recommendationInjure);
     });
 
     $("#recent-picks").addEventListener("click", (event) => {
@@ -567,30 +587,6 @@
       saveState();
       renderAll();
     });
-  }
-
-  function csvCell(value) {
-    const string = String(value ?? "");
-    return `"${string.replaceAll('"', '""')}"`;
-  }
-
-  function exportCsv() {
-    const header = ["Rank", "Player", "Position", "Team", "Bye", "ADP", "Projection PPR FPG", "2025 PPR FPG", "2024 PPR FPG", "Tier", "Role", "System Fit", "Team Style", "QB Environment", "Bye Signal", "Official Status", "Manual Injury Tag", "Available", "Draft Score", "Injury / context"];
-    const rows = players.map((p) => {
-      const metrics = scorePlayer(p);
-      const status = displayStatus(p);
-      return [p.rank, p.name, p.pos, p.team, p.bye, p.adp, p.proj || "", p.fpg25 || "", p.fpg24 || "", p.tier, metrics.context.role.label, metrics.context.fit.label, metrics.context.system.style, metrics.context.system.qb, metrics.context.bye.label, status.label || "Healthy", state.manualInjured[p.id] ? "Yes" : "No", state.drafted.includes(p.id) ? "No" : "Yes", Math.round(metrics.score), p.injury];
-    });
-    const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "draftboard-2026-ppr.csv";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
   }
 
   renderDatalist();

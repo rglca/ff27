@@ -4,7 +4,7 @@
  * current depth charts, 2025 run/pass tendencies, and 2026 role reports.
  */
 window.FANTASY_CONTEXT = {
-  asOf: "2026-08-29",
+  asOf: "2026-08-31",
   systems: {
     ARI: { style: "PASS-LEANING", qb: "VOLATILE", shape: "MCCBRIDE-LED", fit: { QB: "NEUTRAL", RB: "NEUTRAL", WR: "NEUTRAL", TE: "STRONG" } },
     ATL: { style: "BALANCED", qb: "VOLATILE", shape: "BIJAN/LONDON-LED", fit: { QB: "NEUTRAL", RB: "STRONG", WR: "NEUTRAL", TE: "NEUTRAL" } },

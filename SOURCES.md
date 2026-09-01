@@ -1,6 +1,6 @@
 # Draftboard sources and methodology
 
-Data was gathered on **August 29, 2026** for a 2026 full-PPR redraft board. The app is a static snapshot: it does not silently scrape live injury data after deployment. Before the draft, open the live source links below, then use the app's `Injure` button for any new news.
+Data was refreshed on **August 31, 2026** for a 2026 full-PPR redraft board. The app is a static snapshot: it does not silently scrape live injury data after deployment. Before the draft, open the live source links below, then use the app's `Injure` button for any new news.
 
 ## Current market and expert opinion
 
@@ -8,7 +8,9 @@ Data was gathered on **August 29, 2026** for a 2026 full-PPR redraft board. The 
 - [FantasyPros 2026 PPR ADP composite](https://www.fantasypros.com/nfl/adp/ppr-overall.php?export=xls) — composite ADP across ESPN, CBS Sports, RTSports, Fantrax, and Sleeper. The page states the composite uses five sources; the visible source dates are Aug. 27–28, 2026.
 - [FantasyPros 2026 PPR VBD rankings](https://www.fantasypros.com/nfl/rankings/ppr-vbd.php) — a value-based cross-check that exposes VBD/VORP and ADP, useful for identifying players the market may be over- or under-valuing.
 - [NFLFantasyEdge 2026 PPR top 100](https://nflfantasyedge.com/rankings-2026/) — current top-100 board with ADP, projected PPR points per game, and tiers; last updated Aug. 29, 2026. This is the primary static board seed because the table is easy to export into a no-build web app.
+- [FantasyDraft.io current PPR ADP](https://fantasydraft.io/nfl/adp/ppr) — Aug. 31, 2026 Sleeper-primary market snapshot with a 250-player PPR order. This is the ADP tab's current-market ordering where the player is present.
 - [ESPN 2026 PPR draft kit PDF](https://g.espncdn.com/s/ffldraftkit/26/NFL26_CS_PPR300.pdf?adddata=2026CS_PPR300) — a 300-player PPR cheat sheet. ESPN describes its default as a 10-team, one-QB format, which is close to this league's setup, though its published roster includes a TE slot and only one FLEX.
+- [STACKED 2026 kicker rankings](https://www.stackedfantasy.com/nfl/draft-guide/k) and [DST rankings](https://www.stackedfantasy.com/nfl/draft-guide/dst) — Aug. 31 kicker and defense draft-guide order used to fill every team unit through the endgame.
 
 ## Team systems, roles, and bye-week context
 
@@ -31,7 +33,8 @@ The recommendation card uses these sources plus `TEAMS.md` to show transparent t
 
 ## Latest injury refresh
 
-- [CBS Sports 2026 NFL injuries](https://www.cbssports.com/nfl/injuries/) — current team-by-team injury and Week 1 status table checked Aug. 29, 2026.
+- [CBS Sports 2026 NFL injuries](https://www.cbssports.com/nfl/injuries/) — current team-by-team injury and Week 1 status table checked Aug. 31, 2026.
+- [PFF 2026 fantasy depth charts](https://www.pff.com/news/fantasy-football-2026-depth-charts-for-all-32-nfl-teams) — Aug. 31 post-preseason/roster-cutdown role update, including Dallas' Malik Davis backup role and Kansas City's Emmett Johnson backup role.
 - [PFN fantasy injury update](https://www.profootballnetwork.com/fantasy-football/preseason-fantasy-football-injury-update-2026/) — Aug. 29 fantasy-focused context for Mahomes, Jacobs, Charbonnet, Skattebo, Nabers, Kittle, and other high-impact players.
 - [PFN injury report](https://www.profootballnetwork.com/fantasy-hq/injury-report) — cross-check for questionable players and contingency value.
 
@@ -60,6 +63,6 @@ Each available player receives a draft score based on:
 6. **Strategy lens** — a small early-draft boost for WRs in WR-first mode or RBs in RB-first mode.
 7. **Health** — `Q` receives a moderate discount; `O` and a user-applied manual injury tag receive a severe discount.
 
-The board now includes 186 rows so a 160-pick league has late-round and contingency depth. Rows added beyond the original top-144 seed are intentionally late-board player and handcuff additions; their late ADPs are conservative board estimates rather than direct composite-market observations.
+The board now includes a complete 2026 pool for every offensive position, all 32 kickers, and all 32 team defenses. Players added beyond the current ADP market layer are intentionally late-board players, handcuffs, and team units; their late ADPs are conservative estimates rather than direct composite-market observations.
 
 The score is a decision aid, not a projection or a guarantee. A status tag is only as current as the snapshot and any manual update you enter.
