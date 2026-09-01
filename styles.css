@@ -69,6 +69,7 @@ h3 { margin: 4px 0 0; font-size: 20px; letter-spacing: -0.04em; }
 .recommendation-option-name { margin-top: 5px; color: #f4f8ee; font-size: 17px; font-weight: 850; letter-spacing: -.05em; line-height: 1.03; overflow-wrap: anywhere; }
 .recommendation-option .rec-rank { font-size: 11px; }
 .recommendation-option .rec-meta { margin-top: 6px; font-size: 10px; line-height: 1.35; }
+.recommendation-option-value { margin-top: 9px; color: #b8cbbd; font-size: 10px; font-weight: 800; letter-spacing: .02em; }
 .recommendation-option .recommendation-signals { margin-top: 11px; padding-top: 10px; gap: 5px; flex: 1; }
 .recommendation-option .signal-tag { padding: 5px 6px; font-size: 9px; }
 .recommendation-option-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 12px; }

@@ -3,10 +3,14 @@
  * can be hosted from a GitHub Pages repository with no build step.
  *
  * fpg25/fpg24 are fantasy points per game from FantasyPros' season tables.
- * proj is a current PPR points-per-game projection from the Aug. 29 board.
+ * proj is a current PPR points-per-game projection from the core sourced board.
  */
+const recentQuality = (fpg25, fpg24) => Number.isFinite(fpg25) && Number.isFinite(fpg24) ? "two-season" : Number.isFinite(fpg25) || Number.isFinite(fpg24) ? "one-season" : "missing";
 const player = (id, name, pos, team, bye, rank, adp, proj, tier, fpg25 = null, fpg24 = null, status = "healthy", injury = "") => ({
-  id, name, pos, team, bye, rank, adp, proj, tier, fpg25, fpg24, status, injury
+  id, name, pos, team, bye, rank, adp, proj, tier, fpg25, fpg24, status, injury,
+  adpQuality: "estimated",
+  projectionQuality: Number.isFinite(proj) ? "sourced" : "missing",
+  recentQuality: recentQuality(fpg25, fpg24)
 });
 
 const players = [

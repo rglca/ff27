@@ -1,8 +1,8 @@
 (() => {
   const { players, asOf } = window.FANTASY_BOARD;
   const fantasyContext = window.FANTASY_CONTEXT || { systems: {}, roles: {} };
+  const scoring = window.FANTASY_SCORING;
   const LEAGUE = { teams: 10, starterSlots: 10, bench: 6 };
-  const QB_RECENT_PRODUCTION_WEIGHT = 0.5; // 2025 QB production is intentionally half-weighted; no player-specific QB exception.
   const STORAGE_KEY = "draftboard-2026-state-v1";
   const makeInitialState = () => ({
     strategy: "balanced",
@@ -25,6 +25,7 @@
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => [...document.querySelectorAll(selector)];
   const playerById = new Map(players.map((p) => [p.id, p]));
+  const replacementLevels = scoring.buildReplacementLevels(players, LEAGUE);
 
   function systemFor(p) {
     return fantasyContext.systems[p.team] || {
@@ -36,22 +37,7 @@
   }
 
   function roleFor(p) {
-    const explicit = fantasyContext.roles[p.id] || p.depthRole;
-    if (explicit) {
-      const upper = explicit.toUpperCase();
-      const starter = ["LEAD", "RB1", "RB2", "WR1", "WR2", "TE1", "ELITE QB", "STARTER QB", "STARTER K", "STARTER UNIT"].some((term) => upper.includes(term));
-      const contingency = ["HANDCUFF", "CONTINGENCY", "ROTATION"].some((term) => upper.includes(term));
-      return {
-        label: explicit,
-        tone: upper.includes("INJURY RISK") || upper.includes("HANDCUFF") ? "risk" : starter ? "good" : "neutral",
-        multiplier: starter ? 1.06 : contingency ? 0.96 : 1.01
-      };
-    }
-    if (p.pos === "QB") return { label: "STARTER QB", tone: "good", multiplier: 1.03 };
-    if (["K", "DEF"].includes(p.pos)) return { label: "STARTER UNIT", tone: "good", multiplier: 1.02 };
-    if (p.rank <= 90) return { label: "STARTER / ROTATION", tone: "neutral", multiplier: 1.01 };
-    if (p.rank <= 140) return { label: "ROTATION", tone: "neutral", multiplier: 0.98 };
-    return { label: "CONTINGENCY", tone: "risk", multiplier: 0.93 };
+    return scoring.roleFor(p, fantasyContext.roles);
   }
 
   function byeFor(p) {
@@ -91,6 +77,20 @@
     return tags;
   }
 
+  function provenanceTags(p, metrics) {
+    const projectionLabels = { sourced: "PROJ SOURCED", "adp-derived": "PROJ ADP-DERIVED", estimated: "PROJ ESTIMATED", missing: "PROJ MISSING" };
+    const historyLabels = { "two-season": "HISTORY 2Y", "one-season": "HISTORY 1Y", missing: "HISTORY MISSING" };
+    const projectionQuality = p.projectionQuality || "missing";
+    const recentQuality = p.recentQuality || "missing";
+    const confidenceTone = metrics.confidence === "HIGH" ? "good" : metrics.confidence === "LOW" ? "risk" : "neutral";
+    return [
+      { label: projectionLabels[projectionQuality] || "PROJ UNKNOWN", tone: projectionQuality === "sourced" ? "good" : projectionQuality === "adp-derived" ? "risk" : "neutral" },
+      { label: p.adpQuality === "market" ? "ADP MARKET" : "ADP EST", tone: p.adpQuality === "market" ? "good" : "neutral" },
+      { label: historyLabels[recentQuality] || "HISTORY UNKNOWN", tone: recentQuality === "two-season" ? "good" : recentQuality === "missing" ? "risk" : "neutral" },
+      { label: `CONFIDENCE ${metrics.confidence}`, tone: confidenceTone }
+    ];
+  }
+
   function recommendationSignals(p, metrics) {
     const context = metrics.context;
     const status = displayStatus(p);
@@ -101,6 +101,7 @@
       { label: `QB ${context.system.qb}`, tone: context.system.qb === "ELITE" || context.system.qb === "STRONG" ? "good" : context.system.qb === "WEAK" || context.system.qb === "VOLATILE" ? "risk" : "neutral" },
       { label: `TARGET ${context.system.shape}`, tone: context.system.shape === "SPREAD" ? "risk" : "neutral" },
       { label: context.bye.label, tone: context.bye.tone },
+      ...provenanceTags(p, metrics),
       ...needTags(p)
     ];
     if (status.className === "out" || status.className === "manual") tags.push({ label: "HEALTH OUT", tone: "risk" });
@@ -202,54 +203,19 @@
   }
 
   function scorePlayer(p) {
-    const c = counts();
-    const pick = currentPick();
-    const averageRecent = [p.fpg25, p.fpg24].filter((value) => Number.isFinite(value));
-    const recent = averageRecent.length ? averageRecent.reduce((a, b) => a + b, 0) / averageRecent.length : null;
-    const scoringRecentValues = p.pos === "QB"
-      ? [Number.isFinite(p.fpg25) ? p.fpg25 * QB_RECENT_PRODUCTION_WEIGHT : null, p.fpg24].filter((value) => Number.isFinite(value))
-      : averageRecent;
-    const scoringRecent = scoringRecentValues.length ? scoringRecentValues.reduce((a, b) => a + b, 0) / scoringRecentValues.length : null;
-    const projectionScore = p.proj ? Math.min(100, (p.proj / 24) * 100) : scoringRecent ? Math.min(100, (scoringRecent / 20) * 100) : 46;
-    const marketScore = Math.max(12, 100 - (p.adp / 2.05));
-    const statScore = scoringRecent ? Math.min(100, (scoringRecent / 20) * 100) : projectionScore * 0.88;
-    let score = (projectionScore * 0.48) + (marketScore * 0.27) + (statScore * 0.25);
-    const context = contextFor(p);
-    score *= context.role.multiplier * context.fit.multiplier * context.bye.multiplier;
-
-    let need = 1;
-    if (p.pos === "RB" && c.RB < 2) need *= 1.16;
-    if (p.pos === "WR" && c.WR < 2) need *= 1.16;
-    if (p.pos === "TE" && c.TE < 1) need *= 1.12;
-    if (p.pos === "TE" && flexesFilled(c) < 2) need *= 1.03;
-    if (["RB", "WR", "TE"].includes(p.pos) && flexesFilled(c) < 2) need *= 1.04;
-    if (p.pos === "QB") {
-      if (c.QB > 0) need *= 0.42;
-      else if (pick < 110) need *= 0.42;
-      else if (pick < 140) need *= 0.58;
-      else if (pick < 160) need *= 0.78;
-    }
-    if (p.pos === "K") need *= c.K === 0 && pick >= 105 ? 1.18 : 0.22;
-    if (p.pos === "DEF") need *= c.DEF === 0 && pick >= 105 ? 1.18 : 0.22;
-    if (benchFilled(c) < LEAGUE.bench && starterSlotsFilled(c) >= LEAGUE.starterSlots && ["RB", "WR", "TE"].includes(p.pos)) need *= 1.08;
-
-    const early = pick <= 70;
-    if (state.strategy === "wr-first" && p.pos === "WR" && early) need *= 1.10;
-    if (state.strategy === "rb-first" && p.pos === "RB" && early) need *= 1.10;
-    if (["K", "DEF"].includes(p.pos) && pick < 105) need *= 0.28;
-
-    const status = displayStatus(p);
-    const health = status.className === "out" || status.className === "manual" ? 0.08 : status.className === "questionable" ? 0.84 : 1;
-    score *= need * health;
-
-    return {
-      score,
-      recent,
-      need,
-      health,
-      context,
-      value: p.adp - p.rank
-    };
+    const countsSnapshot = counts();
+    return scoring.scorePlayer(p, {
+      context: contextFor(p),
+      replacementLevels,
+      rosterCounts: countsSnapshot,
+      rosterLength: state.myRoster.length,
+      starterSlotsFilled: starterSlotsFilled(countsSnapshot),
+      benchFilled: benchFilled(countsSnapshot),
+      league: LEAGUE,
+      pick: currentPick(),
+      strategy: state.strategy,
+      status: displayStatus(p)
+    });
   }
 
   function availablePlayers() {
@@ -298,6 +264,7 @@
         </div>
         <div class="recommendation-score"><div class="rec-score">${Math.round(metrics.score)}</div><div class="rec-score-label">score</div></div>
       </div>
+      <div class="recommendation-option-value">${metrics.projectedVOR === null ? "PROJ VOR — · REPL —" : `PROJ VOR ${metrics.projectedVOR >= 0 ? "+" : ""}${metrics.projectedVOR.toFixed(1)} · REPL ${metrics.replacementPPG.toFixed(1)} PPG`}</div>
       <div class="recommendation-signals" aria-label="${escapeHtml(p.name)} signals">
         ${recommendationSignals(p, metrics).map((tag) => `<span class="signal-tag ${tag.tone}">${escapeHtml(tag.label)}</span>`).join("")}
       </div>

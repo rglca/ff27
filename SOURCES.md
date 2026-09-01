@@ -18,7 +18,7 @@ Data was refreshed on **August 31, 2026** for a 2026 full-PPR redraft board. The
 - [PFF 2026 fantasy depth charts](https://www.pff.com/news/fantasy-football-2026-depth-charts-for-all-32-nfl-teams) — fantasy-oriented role and target-share cross-check across all 32 teams.
 - [2025 NFL team run/pass ratios](https://www.gofootballanalytics.com/seasonstats/run-pass-ratio/all/2025/all.php) — baseline for the team-style tags (pass-heavy, pass-leaning, balanced, or run-leaning).
 
-The recommendation card uses these sources plus `TEAMS.md` to show transparent tags rather than a prose explanation: role, position/system fit, team style, QB environment, concentration/spread shape, bye-week relationship to the current roster, roster need, and health. These are directional context modifiers layered on top of projection, ADP, recent production, and league-roster pressure; they are not independent projections.
+The recommendation card uses these sources plus `TEAMS.md` to show transparent tags rather than a prose explanation: role, position/system fit, team style, QB environment, concentration/spread shape, bye-week relationship to the current roster, roster need, health, input provenance, confidence, projected value over replacement, and the positional replacement baseline. The team/context tags are directional modifiers, not independent projections.
 
 ## Recent production
 
@@ -38,7 +38,7 @@ The recommendation card uses these sources plus `TEAMS.md` to show transparent t
 - [PFN fantasy injury update](https://www.profootballnetwork.com/fantasy-football/preseason-fantasy-football-injury-update-2026/) — Aug. 29 fantasy-focused context for Mahomes, Jacobs, Charbonnet, Skattebo, Nabers, Kittle, and other high-impact players.
 - [PFN injury report](https://www.profootballnetwork.com/fantasy-hq/injury-report) — cross-check for questionable players and contingency value.
 
-The app stores recent fantasy points per game (`2025 FPG` and `2024 FPG`) where the source tables exposed the player row. For rookies and players with limited accessible rows, the current projection and market rank carry more weight.
+The app stores recent fantasy points per game (`2025 FPG` and `2024 FPG`) where the source tables exposed the player row. Missing history is omitted from the score rather than replaced with a projection, so the remaining components are renormalized. For rookies and players with limited accessible rows, the current projection and market rank carry more weight and the recommendation exposes lower confidence.
 
 ## Injury and availability context
 
@@ -55,13 +55,15 @@ The app stores recent fantasy points per game (`2025 FPG` and `2024 FPG`) where 
 
 Each available player receives a draft score based on:
 
-1. **48% projection** — current PPR points-per-game projection where available.
-2. **27% market** — current ADP, with earlier ADP rewarded.
-3. **25% recent production** — the average of 2024 and 2025 fantasy points per game where available.
-4. **QB-specific production/timing** — 2025 QB fantasy points are multiplied by 0.5 inside the recent-production component. All quarterbacks share the same timing curve: the model suppresses them early, then progressively relaxes that discount from roughly pick 110 onward; there is no player-specific QB exception.
-5. **Roster pressure** — boosts RB/WR/TE while required slots are still empty, boosts FLEX-eligible players while FLEX spots are open, adds pressure for the six bench spots after the ten starters are filled, and suppresses QB/K/DEF after the relevant slot is filled. K and DEF are intentionally held down until roughly pick 105.
-6. **Strategy lens** — a small early-draft boost for WRs in WR-first mode or RBs in RB-first mode.
-7. **Health** — `Q` receives a moderate discount; `O` and a user-applied manual injury tag receive a severe discount.
+1. **Replacement level** — the engine selects 10 QBs, 20 RBs, 20 WRs, and 10 TEs by projection, then allocates the 20 league FLEX slots to the best remaining RB/WR/TE options. The best unselected player at each position becomes that position's replacement baseline.
+2. **VOR projection component** — current projected PPR points per game minus positional replacement PPG, normalized across positions with replacement anchored at 50.
+3. **Market component** — current ADP, with earlier ADP rewarded.
+4. **VOR recent-production component** — the available 2024/2025 FPG history relative to the same positional replacement baseline. Missing history is omitted and the available 48/27/25 weights are renormalized.
+5. **Provenance-aware weighting** — sourced projections receive the full projection weight; manually estimated projections receive half weight; ADP-derived projections receive zero projection weight when ADP is present to prevent circular weighting. The ADP tab's refreshed observations are marked `market`; supplemental estimates are marked `estimated`.
+6. **Roster pressure** — boosts RB/WR/TE while required slots are still empty, boosts FLEX-eligible players while FLEX spots are open, adds pressure for the six bench spots after the ten starters are filled, and suppresses an additional QB after the roster slot is filled. K and DEF retain explicit late-round timing suppression because they are commonly streamed.
+7. **Strategy and health** — adds the small early WR-first/RB-first lens and applies moderate `Q` or severe `O`/manual-injury discounts. There are no QB-specific production weights or pick-110/140/160 cliffs.
+
+Players carry `adpQuality`, `projectionQuality`, and `recentQuality` metadata. The recommendation tags expose those fields as `ADP MARKET`, `ADP EST`, `PROJ SOURCED`, `PROJ ADP-DERIVED`, `HISTORY 1Y`, and confidence levels.
 
 The board now includes a complete 2026 pool for every offensive position, all 32 kickers, and all 32 team defenses. Players added beyond the current ADP market layer are intentionally late-board players, handcuffs, and team units; their late ADPs are conservative estimates rather than direct composite-market observations.
 

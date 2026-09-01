@@ -60,7 +60,7 @@
     "kyler-murray": 158.1, "sam-darnold": 160.0, "tyjae-spears": 162.2, "woody-marks": 159.2
   };
 
-  Object.entries(latestAdp).forEach(([id, adp]) => update(id, "", { adp }));
+  Object.entries(latestAdp).forEach(([id, adp]) => update(id, "", { adp, adpQuality: "market" }));
 
   // Availability and depth-chart changes checked against the current CBS/PFN
   // injury pages plus the Aug. 31 PFF fantasy depth-chart refresh.
@@ -88,5 +88,10 @@
     window.FANTASY_CONTEXT.asOf = "2026-08-31";
     window.FANTASY_CONTEXT.roles["marshawn-lloyd"] = "LEAD RB";
   }
+  players.forEach((player) => {
+    if (!player.adpQuality) player.adpQuality = "estimated";
+    if (!player.projectionQuality) player.projectionQuality = Number.isFinite(player.proj) ? "estimated" : "missing";
+    if (!player.recentQuality) player.recentQuality = Number.isFinite(player.fpg25) && Number.isFinite(player.fpg24) ? "two-season" : Number.isFinite(player.fpg25) || Number.isFinite(player.fpg24) ? "one-season" : "missing";
+  });
   board.asOf = "2026-08-31";
 })();

@@ -24,9 +24,9 @@
     return Math.max(5.3, 20.5 - adp * 0.055);
   }
 
-  function add({ id, name, pos, team, adp, proj, tier = "Deep pool", status = "healthy", injury = "", depthRole = "ROTATION" }) {
+  function add({ id, name, pos, team, adp, proj, tier = "Deep pool", status = "healthy", injury = "", depthRole = "ROTATION", adpQuality = "estimated", projectionQuality = "adp-derived", recentQuality = "missing" }) {
     if (byId.has(id) || byName.has(normalizeName(name))) return;
-    players.push({ id, name, pos, team, bye: byeWeeks[team] || 0, rank: nextRank++, adp, proj: proj ?? fallbackProjection(pos, adp), tier, fpg25: null, fpg24: null, status, injury, depthRole });
+    players.push({ id, name, pos, team, bye: byeWeeks[team] || 0, rank: nextRank++, adp, proj: proj ?? fallbackProjection(pos, adp), tier, fpg25: null, fpg24: null, status, injury, depthRole, adpQuality, projectionQuality, recentQuality });
     byId.add(id);
     byName.add(normalizeName(name));
   }
