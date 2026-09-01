@@ -1,6 +1,6 @@
 # Draftboard sources and methodology
 
-Data was refreshed on **August 31, 2026** for a 2026 full-PPR redraft board. The app is a static snapshot: it does not silently scrape live injury data after deployment. Before the draft, open the live source links below, then use the app's `Injure` button for any new news.
+Data was refreshed on **August 31, 2026** for a 2026 full-PPR redraft board. The app is a static snapshot: it does not silently scrape live injury data after deployment. Before the draft, open the live source links below, then use the `Injuries` tab's search and `Add manual tag` action for any new news.
 
 ## Current market and expert opinion
 
@@ -58,7 +58,7 @@ Each available player receives a draft score based on:
 1. **48% projection** — current PPR points-per-game projection where available.
 2. **27% market** — current ADP, with earlier ADP rewarded.
 3. **25% recent production** — the average of 2024 and 2025 fantasy points per game where available.
-4. **QB-specific production/timing** — 2025 QB fantasy points are multiplied by 0.5 inside the recent-production component, and non-Allen quarterbacks are held back until the late portion of the draft. Josh Allen is the only early-QB exception.
+4. **QB-specific production/timing** — 2025 QB fantasy points are multiplied by 0.5 inside the recent-production component. All quarterbacks share the same timing curve: the model suppresses them early, then progressively relaxes that discount from roughly pick 110 onward; there is no player-specific QB exception.
 5. **Roster pressure** — boosts RB/WR/TE while required slots are still empty, boosts FLEX-eligible players while FLEX spots are open, adds pressure for the six bench spots after the ten starters are filled, and suppresses QB/K/DEF after the relevant slot is filled. K and DEF are intentionally held down until roughly pick 105.
 6. **Strategy lens** — a small early-draft boost for WRs in WR-first mode or RBs in RB-first mode.
 7. **Health** — `Q` receives a moderate discount; `O` and a user-applied manual injury tag receive a severe discount.

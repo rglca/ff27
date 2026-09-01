@@ -2,7 +2,7 @@
   const { players, asOf } = window.FANTASY_BOARD;
   const fantasyContext = window.FANTASY_CONTEXT || { systems: {}, roles: {} };
   const LEAGUE = { teams: 10, starterSlots: 10, bench: 6 };
-  const QB_RECENT_PRODUCTION_WEIGHT = 0.5;
+  const QB_RECENT_PRODUCTION_WEIGHT = 0.5; // 2025 QB production is intentionally half-weighted; no player-specific QB exception.
   const STORAGE_KEY = "draftboard-2026-state-v1";
   const makeInitialState = () => ({
     strategy: "balanced",
@@ -13,6 +13,7 @@
     view: "board",
     posFilter: "ALL",
     adpPosFilter: "ALL",
+    injurySearch: "",
     search: "",
     sort: "score",
     availableOnly: true,
@@ -224,7 +225,6 @@
     if (["RB", "WR", "TE"].includes(p.pos) && flexesFilled(c) < 2) need *= 1.04;
     if (p.pos === "QB") {
       if (c.QB > 0) need *= 0.42;
-      else if (p.id === "josh-allen" && pick <= 40) need *= 1.20;
       else if (pick < 110) need *= 0.42;
       else if (pick < 140) need *= 0.58;
       else if (pick < 160) need *= 0.78;
@@ -304,7 +304,6 @@
       <div class="recommendation-option-actions">
         <button class="row-action take" data-recommendation-take="${p.id}" type="button">I took</button>
         <button class="row-action" data-recommendation-draft="${p.id}" type="button">Drafted</button>
-        <button class="row-action injury" data-recommendation-injure="${p.id}" type="button">${state.manualInjured[p.id] ? "Clear tag" : "Injure"}</button>
       </div>
     </article>`;
   }
@@ -375,7 +374,6 @@
       <div class="row-actions">
         <button class="row-action take" data-take-player="${p.id}" type="button">I took</button>
         <button class="row-action" data-draft-player="${p.id}" type="button">Drafted</button>
-        <button class="row-action injury" data-injure-player="${p.id}" type="button">${manual ? "Clear tag" : "Injure"}</button>
       </div>
     </div>`;
   }
@@ -394,7 +392,6 @@
       <div class="adp-actions">
         <button class="row-action take" data-adp-take="${p.id}" type="button">I took</button>
         <button class="row-action" data-adp-draft="${p.id}" type="button">Drafted</button>
-        <button class="row-action injury" data-adp-injure="${p.id}" type="button">${manual ? "Clear tag" : "Injure"}</button>
       </div>
     </div>`;
   }
@@ -415,11 +412,22 @@
   }
 
   function renderInjuries() {
-    const flagged = players.filter((p) => p.status !== "healthy" || state.manualInjured[p.id]).sort((a, b) => a.rank - b.rank);
-    $("#injuries-view").innerHTML = flagged.length ? `<div class="injury-list">${flagged.map((p) => {
+    const query = normalize(state.injurySearch);
+    const flagged = players
+      .filter((p) => !query ? p.status !== "healthy" || state.manualInjured[p.id] : normalize(`${p.name}${p.team}${p.pos}`).includes(query))
+      .sort((a, b) => {
+        const manualDifference = Number(Boolean(state.manualInjured[b.id])) - Number(Boolean(state.manualInjured[a.id]));
+        if (manualDifference) return manualDifference;
+        const officialDifference = Number(b.status !== "healthy") - Number(a.status !== "healthy");
+        return officialDifference || a.rank - b.rank;
+      });
+    $("#injuries-view").innerHTML = `<div class="injury-tools">
+      <input id="injury-search" value="${escapeHtml(state.injurySearch)}" placeholder="Search a player to add a manual tag" aria-label="Search player injury tags" />
+      <p class="muted-small">${query ? `${flagged.length} matching players` : "Manual tags appear first. Search any player to add a tag."}</p>
+    </div>${flagged.length ? `<div class="injury-list">${flagged.map((p) => {
       const status = displayStatus(p);
       return `<div class="injury-card"><div class="injury-title">${escapeHtml(p.name)} <small>${p.pos} · ${p.team} · ${escapeHtml(status.note || p.injury || "Manual tag")}</small></div><div class="injury-status ${status.className}">${status.label || "INJ"}</div><button class="text-button" data-injure-player="${p.id}" type="button">${state.manualInjured[p.id] ? "Clear manual tag" : "Add manual tag"}</button></div>`;
-    }).join("")}</div>` : `<div class="empty-state">No injury flags in the current board.</div>`;
+    }).join("")}</div>` : `<div class="empty-state">${query ? "No players match this search." : "No injury flags in the current board."}</div>`}`;
   }
 
   function renderViewState() {
@@ -537,7 +545,6 @@
       if (target.dataset.positionFilter) state.posFilter = target.dataset.positionFilter;
       if (target.dataset.takePlayer) draftPlayer(target.dataset.takePlayer, true);
       if (target.dataset.draftPlayer) draftPlayer(target.dataset.draftPlayer, false);
-      if (target.dataset.injurePlayer) toggleManualInjury(target.dataset.injurePlayer);
       saveState();
       renderAll();
     });
@@ -548,9 +555,16 @@
       if (target.dataset.adpPositionFilter) state.adpPosFilter = target.dataset.adpPositionFilter;
       if (target.dataset.adpTake) draftPlayer(target.dataset.adpTake, true);
       if (target.dataset.adpDraft) draftPlayer(target.dataset.adpDraft, false);
-      if (target.dataset.adpInjure) toggleManualInjury(target.dataset.adpInjure);
       saveState();
       renderAll();
+    });
+    $("#injuries-view").addEventListener("input", (event) => {
+      if (event.target.id !== "injury-search") return;
+      state.injurySearch = event.target.value;
+      renderInjuries();
+      const search = $("#injury-search");
+      search.focus();
+      search.setSelectionRange(search.value.length, search.value.length);
     });
     $("#injuries-view").addEventListener("click", (event) => {
       const target = event.target.closest("button[data-injure-player]");
@@ -562,7 +576,6 @@
       if (!target) return;
       if (target.dataset.recommendationTake) draftPlayer(target.dataset.recommendationTake, true);
       if (target.dataset.recommendationDraft) draftPlayer(target.dataset.recommendationDraft, false);
-      if (target.dataset.recommendationInjure) toggleManualInjury(target.dataset.recommendationInjure);
     });
 
     $("#recent-picks").addEventListener("click", (event) => {
