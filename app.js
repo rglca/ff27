@@ -77,20 +77,6 @@
     return tags;
   }
 
-  function provenanceTags(p, metrics) {
-    const projectionLabels = { sourced: "PROJ SOURCED", "adp-derived": "PROJ ADP-DERIVED", estimated: "PROJ ESTIMATED", missing: "PROJ MISSING" };
-    const historyLabels = { "two-season": "HISTORY 2Y", "one-season": "HISTORY 1Y", missing: "HISTORY MISSING" };
-    const projectionQuality = p.projectionQuality || "missing";
-    const recentQuality = p.recentQuality || "missing";
-    const confidenceTone = metrics.confidence === "HIGH" ? "good" : metrics.confidence === "LOW" ? "risk" : "neutral";
-    return [
-      { label: projectionLabels[projectionQuality] || "PROJ UNKNOWN", tone: projectionQuality === "sourced" ? "good" : projectionQuality === "adp-derived" ? "risk" : "neutral" },
-      { label: p.adpQuality === "market" ? "ADP MARKET" : "ADP EST", tone: p.adpQuality === "market" ? "good" : "neutral" },
-      { label: historyLabels[recentQuality] || "HISTORY UNKNOWN", tone: recentQuality === "two-season" ? "good" : recentQuality === "missing" ? "risk" : "neutral" },
-      { label: `CONFIDENCE ${metrics.confidence}`, tone: confidenceTone }
-    ];
-  }
-
   function recommendationSignals(p, metrics) {
     const context = metrics.context;
     const status = displayStatus(p);
@@ -101,7 +87,7 @@
       { label: `QB ${context.system.qb}`, tone: context.system.qb === "ELITE" || context.system.qb === "STRONG" ? "good" : context.system.qb === "WEAK" || context.system.qb === "VOLATILE" ? "risk" : "neutral" },
       { label: `TARGET ${context.system.shape}`, tone: context.system.shape === "SPREAD" ? "risk" : "neutral" },
       { label: context.bye.label, tone: context.bye.tone },
-      ...provenanceTags(p, metrics),
+      ...scoring.provenanceTags(p, metrics),
       ...needTags(p)
     ];
     if (status.className === "out" || status.className === "manual") tags.push({ label: "HEALTH OUT", tone: "risk" });

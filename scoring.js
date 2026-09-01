@@ -10,9 +10,10 @@
   "use strict";
 
   const WEIGHTS = Object.freeze({ projection: 0.48, market: 0.27, recent: 0.25 });
-  const POSITION_ORDER = ["QB", "RB", "WR", "TE"];
+  const POSITION_ORDER = ["QB", "RB", "WR", "TE", "K", "DEF"];
   const FLEX_POSITIONS = ["RB", "WR", "TE"];
-  const STARTER_SLOTS = Object.freeze({ QB: 1, RB: 2, WR: 2, TE: 1 });
+  const STARTER_SLOTS = Object.freeze({ QB: 1, RB: 2, WR: 2, TE: 1, K: 1, DEF: 1 });
+  const INDEPENDENT_PROJECTION_QUALITIES = new Set(["sourced", "estimated"]);
   const ROLE_MULTIPLIERS = Object.freeze({
     starter: 1.06,
     injuryRisk: 1.02,
@@ -101,30 +102,41 @@
     return Number(b.proj) - Number(a.proj) || Number(a.rank || 9999) - Number(b.rank || 9999) || String(a.id).localeCompare(String(b.id));
   }
 
+  function hasIndependentProjection(player) {
+    return isFiniteNumber(player.proj) && INDEPENDENT_PROJECTION_QUALITIES.has(player.projectionQuality);
+  }
+
   function buildReplacementLevels(players, league = {}) {
     const teams = Number(league.teams) || 10;
     const fixedSlots = {
       QB: teams * STARTER_SLOTS.QB,
       RB: teams * STARTER_SLOTS.RB,
       WR: teams * STARTER_SLOTS.WR,
-      TE: teams * STARTER_SLOTS.TE
+      TE: teams * STARTER_SLOTS.TE,
+      K: teams * STARTER_SLOTS.K,
+      DEF: teams * STARTER_SLOTS.DEF
     };
     const selectedIds = new Set();
-    const allocation = { QB: 0, RB: 0, WR: 0, TE: 0, FLEX: teams * 2 };
+    const allocation = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0, FLEX: teams * 2 };
+    const replacementPlayers = Object.fromEntries(POSITION_ORDER.map((position) => [position, null]));
+    const positionCandidates = Object.fromEntries(POSITION_ORDER.map((position) => [
+      position,
+      players.filter((player) => player.pos === position && hasIndependentProjection(player)).sort(sortByProjection)
+    ]));
 
     POSITION_ORDER.forEach((position) => {
-      players
-        .filter((player) => player.pos === position && isFiniteNumber(player.proj))
-        .sort(sortByProjection)
-        .slice(0, fixedSlots[position])
-        .forEach((player) => {
-          selectedIds.add(player.id);
-          allocation[position] += 1;
-        });
+      const candidates = positionCandidates[position];
+      // A replacement baseline is only valid when the board has enough
+      // independent projections for every starter and one replacement.
+      if (candidates.length < fixedSlots[position] + 1) return;
+      candidates.slice(0, fixedSlots[position]).forEach((player) => {
+        selectedIds.add(player.id);
+        allocation[position] += 1;
+      });
     });
 
     players
-      .filter((player) => FLEX_POSITIONS.includes(player.pos) && isFiniteNumber(player.proj) && !selectedIds.has(player.id))
+      .filter((player) => FLEX_POSITIONS.includes(player.pos) && hasIndependentProjection(player) && !selectedIds.has(player.id))
       .sort(sortByProjection)
       .slice(0, allocation.FLEX)
       .forEach((player) => {
@@ -134,14 +146,23 @@
 
     const baselines = {};
     POSITION_ORDER.forEach((position) => {
-      const bestUnselected = players
-        .filter((player) => player.pos === position && isFiniteNumber(player.proj) && !selectedIds.has(player.id))
-        .sort(sortByProjection)[0];
-      baselines[position] = bestUnselected ? Number(bestUnselected.proj) : null;
+      const candidates = positionCandidates[position];
+      const bestUnselected = candidates.find((player) => !selectedIds.has(player.id));
+      if (candidates.length >= fixedSlots[position] + 1 && bestUnselected) {
+        baselines[position] = Number(bestUnselected.proj);
+        replacementPlayers[position] = {
+          id: bestUnselected.id,
+          name: bestUnselected.name,
+          projection: Number(bestUnselected.proj),
+          projectionQuality: bestUnselected.projectionQuality
+        };
+      } else {
+        baselines[position] = null;
+      }
     });
 
     const vorValues = players
-      .filter((player) => isFiniteNumber(player.proj) && isFiniteNumber(baselines[player.pos]))
+      .filter((player) => hasIndependentProjection(player) && isFiniteNumber(baselines[player.pos]))
       .map((player) => Number(player.proj) - baselines[player.pos]);
     const positiveScale = Math.max(1, ...vorValues.filter((value) => value > 0), 1);
     const negativeScale = Math.max(1, ...vorValues.filter((value) => value < 0).map((value) => Math.abs(value)), 1);
@@ -149,6 +170,9 @@
     return {
       baselines,
       replacement: baselines,
+      replacementPlayers,
+      replacementPlayerIds: Object.fromEntries(POSITION_ORDER.map((position) => [position, replacementPlayers[position] ? replacementPlayers[position].id : null])),
+      replacementProjectionQuality: Object.fromEntries(POSITION_ORDER.map((position) => [position, replacementPlayers[position] ? replacementPlayers[position].projectionQuality : null])),
       vorScales: { positive: positiveScale, negative: negativeScale },
       selectedIds: [...selectedIds],
       allocation,
@@ -200,7 +224,8 @@
       projectedVOR,
       recent,
       recentVOR,
-      projectedWeight
+      projectedWeight,
+      independentSignalCount: components.filter((component) => component.key !== "projection" || player.projectionQuality !== "adp-derived").length
     };
   }
 
@@ -247,9 +272,27 @@
   function confidenceFor(player, details) {
     const projectionQuality = player.projectionQuality || "missing";
     const recentQuality = player.recentQuality || (details.recent === null ? "missing" : "one-season");
-    if (details.components.length <= 1 || projectionQuality === "adp-derived" || recentQuality === "missing") return "LOW";
-    if (projectionQuality === "estimated" || recentQuality === "one-season" || player.adpQuality === "estimated") return "MEDIUM";
-    return "HIGH";
+    const hasBaseline = details.baseline !== null;
+    const hasMarketADP = player.adpQuality === "market" && isFiniteNumber(player.adp);
+    const hasFullSignalSet = details.components.length >= 3;
+    const independentSignalCount = details.independentSignalCount ?? details.components.length;
+    if (hasBaseline && hasMarketADP && projectionQuality === "sourced" && recentQuality === "two-season" && hasFullSignalSet) return "HIGH";
+    if (!hasBaseline || independentSignalCount <= 1) return "LOW";
+    return "MEDIUM";
+  }
+
+  function provenanceTags(player, metrics) {
+    const projectionLabels = { sourced: "PROJ SOURCED", "adp-derived": "PROJ ADP-DERIVED", estimated: "PROJ ESTIMATED", missing: "PROJ MISSING" };
+    const historyLabels = { "two-season": "HISTORY 2Y", "one-season": "HISTORY 1Y", missing: "HISTORY MISSING" };
+    const projectionQuality = player.projectionQuality || "missing";
+    const recentQuality = player.recentQuality || "missing";
+    const confidenceTone = metrics.confidence === "HIGH" ? "good" : metrics.confidence === "LOW" ? "risk" : "neutral";
+    return [
+      { label: projectionLabels[projectionQuality] || "PROJ UNKNOWN", tone: projectionQuality === "sourced" ? "good" : projectionQuality === "adp-derived" ? "risk" : "neutral" },
+      { label: player.adpQuality === "market" ? "ADP MARKET" : "ADP EST", tone: player.adpQuality === "market" ? "good" : "neutral" },
+      { label: historyLabels[recentQuality] || "HISTORY UNKNOWN", tone: recentQuality === "two-season" ? "good" : recentQuality === "missing" ? "risk" : "neutral" },
+      { label: `CONFIDENCE ${metrics.confidence}`, tone: confidenceTone }
+    ];
   }
 
   function scorePlayer(player, options = {}) {
@@ -288,10 +331,13 @@
     roleFor,
     weightedMean,
     marketScore,
+    hasIndependentProjection,
     buildReplacementLevels,
     normalizeVOR,
     projectionWeight,
     componentInputs,
+    confidenceFor,
+    provenanceTags,
     scorePlayer,
     healthMultiplier
   };

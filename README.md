@@ -26,7 +26,7 @@ The app saves draft state in the browser's local storage. `Reset` clears the dra
 
 ## Scoring tests
 
-Run `node --test tests/scoring.test.js` with Node 20+ to verify the DOM-free scoring engine, replacement allocation, provenance weighting, and QB timing behavior.
+Run `npm test` with Node 20+ to verify the DOM-free scoring engine plus the headless-browser/localStorage smoke test. Playwright is a development-only dependency.
 
 ## Publish with GitHub Pages
 
